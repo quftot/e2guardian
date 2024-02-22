@@ -146,7 +146,7 @@ language = 'ukenglish'
 ### NAMES_PATHS section
 ###
 
-# servername = 'my_name"
+# servername = 'my_name'
 #
 # Default is to use the system name of the host in logs
 
@@ -698,7 +698,7 @@ regexpboollist = 'name=browser,path=__LISTDIR__/browserregexplist'
 ###
 
 # set_dstatslog = 'file:@E2LOGLOCATION@/dstats.log'
-# Dymamic statistics log file output
+# Dynamic statistics log file output
 #
 # Defines the dstats file directory and filename.
 # Once every 'dstatinterval' seconds, stats on number of threads in use,
