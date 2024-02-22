@@ -51,7 +51,7 @@ language = 'ukenglish'
 # The text between <> will replace occurrences of __LISTDIR__ in .conf and
 #       list files.
 # See INFO section for more details
-# default LISTDIR value for e2guardian.conf is E2CONFDIR/lists/commom
+# default LISTDIR value for e2guardian.conf is E2CONFDIR/lists/common
 
 #dockermode = off
 #
