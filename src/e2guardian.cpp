@@ -39,7 +39,7 @@
 
 // GLOBALS
 
-OptionContainer o;
+OptionContainer o; // 
 thread_local std::string thread_id;
 std::atomic<bool> g_is_starting;
 
@@ -74,19 +74,19 @@ void prepareRegExp();
 // IMPLEMENTATION
 
 int main(int argc, char *argv[]) {
-    g_is_starting = true;
-    thread_id = "";
-    int ret = 0;
+    g_is_starting = true; // 백그라운드 데몬 여부 (for 로그)
+    thread_id = ""; // 스레드 아이디
+    int ret = 0; // 메인 함수 종료시 반환하는 응답값
 
-    o.config.prog_name = PACKAGE;
-    o.config.configfile = __CONFFILE;
+    o.config.prog_name = PACKAGE; // 패키지명이 담긴 매크로로 프로그램명 정의
+    o.config.configfile = __CONFFILE; // 설정파일경로가 담긴 매크로로 설정 파일 정의 (e2config.h)
 
-    srand(time(NULL));
+    srand(time(NULL)); // 현재 시간을 기준으로 난수 생성
 
     // Set current locale for proper character conversion
-    setlocale(LC_ALL, "");
+    setlocale(LC_ALL, ""); // 인코딩 방식 지정
 
-    e2logger.setSyslogName(o.config.prog_name);
+    e2logger.setSyslogName(o.config.prog_name); // 프로그램명을 syslog에 기록할 명칭으로 지정
 
 //    E2LOGGER_info("Start ", prog_name );  // No we are not starting here - we may be stopping, reloading etc
 
@@ -104,27 +104,27 @@ int main(int argc, char *argv[]) {
     test_udp.connect("192.168.1.102", 33001);
     std::string line = "this is a test of upd logging";
     if(test_udp.writeString(line)) {
-        std::cerr <<  "upd write ok" << std::endl;
+        std::cerr <<  "upd write ok" << std::endl; // 오탈자.. upd -> udp
     } else {
         std::cerr << "upd write ok" << std::endl;
     }
 #endif
 
     DEBUG_trace("read CommandLineOptions");
-    int rc = readCommandlineOptions(ret, argc, argv);
+    int rc = readCommandlineOptions(ret, argc, argv); // 명령행 인자 값에 대한 처리
     if (rc == E2_EXIT) return ret;
 
 
     DEBUG_trace("read Configfile: ", o.config.configfile);
-    if (!o.read_config(o.config.configfile)) {
+    if (!o.read_config(o.config.configfile)) { // 설정 파일 확인
         E2LOGGER_error("Error parsing the e2guardian.conf file or other e2guardian configuration files");
         exit(1); // OptionContainer class had an error reading the conf or other files so exit with error
     }
 
-    if(force_nodeamon)
+    if(force_nodeamon) // 명령행 인자 값에 따라 변경
         o.proc.no_daemon = true;
 
-    if (o.config.total_block_list) {
+    if (o.config.total_block_list) { // 명령행 인자 값에 따라 변경
         if (o.readinStdin()) {
             DEBUG_debug("Total block lists read OK from stdin.");
         } else {
@@ -138,9 +138,9 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    prepareRegExp();
+    prepareRegExp(); // 정규표현식 초기화 (URL 디코딩, 절대 URl, 상대 URL)
 
-    return startDaemon();
+    return startDaemon(); // 데몬 시작
 
 }
 
@@ -180,7 +180,7 @@ int readCommandlineOptions(int &ret, int argc, char *argv[])  // returns E2_EXIT
             for (unsigned int j = 1; j < strlen(argv[i]); j++) {
                 char option = argv[i][j];
                 bool dobreak = false;
-                switch (option) {
+                switch (option) { // stdin 입력값으로(수동 지정) 경로 지정
                     case 'q':
                         o.read_config(o.config.configfile, false);
                         ret = sysv_kill(o.proc.pid_filename, true);
@@ -282,18 +282,18 @@ int readCommandlineOptions(int &ret, int argc, char *argv[])  // returns E2_EXIT
 
 int startDaemon() {
     DEBUG_trace("prepare Start");
-    if (sysv_amirunning(o.proc.pid_filename)) {
+    if (sysv_amirunning(o.proc.pid_filename)) { // 실행 중인 지 체크
         E2LOGGER_error("I seem to be running already!");
         return 1; // can't have two copies running!!
     }
 
-    if (!check_enough_filedescriptors()) return 1;
-    if (!o.proc.find_user_ids()) return 1;
-    if (!o.proc.become_proxy_user()) return 1;
+    if (!check_enough_filedescriptors()) return 1; // 파일 디스크립터 할당 가능 여부 체크
+    if (!o.proc.find_user_ids()) return 1; // 프로세스 실행하는 사용자 정보 체크
+    if (!o.proc.become_proxy_user()) return 1; // 프로세스의 사용자ID를 프록시 사용자로 변경 (프로세스가 더 낮은 권한을 가진 사용자로 실행되도록,,? 보안?)
 
     DEBUG_trace("Starting Main loop");
-    while (true) {
-        int rc = fc_controlit();
+    while (true) { // 빙글빙글
+        int rc = fc_controlit(); // 소켓 바인딩부터 주요 행위를 하는 함수!!!
         // its a little messy, but I wanted to split
         // all the ground work and non-daemon stuff
         // away from the daemon class
@@ -303,11 +303,11 @@ int startDaemon() {
 
             // In order to re-read the conf files
             // we need to become root user again
-            if (!o.proc.become_root_user()) return 1;
+            if (!o.proc.become_root_user()) return 1; // 설정 파일을 읽기 위해 root 사용자 권한 획득
 
             DEBUG_trace("About to re-read conf file.");
             o.reset();
-            if (!o.read_config(o.config.configfile, true)) {
+            if (!o.read_config(o.config.configfile, true)) { // 설정 파일 읽는 부분
                 // OptionContainer class had an error reading the conf or
                 // other files so exit with errora
                 E2LOGGER_error("Error re-parsing the e2guardian.conf file or other e2guardian configuration files");
@@ -315,17 +315,17 @@ int startDaemon() {
             }
             DEBUG_trace("conf file read.");
 
-            while (waitpid(-1, NULL, WNOHANG) > 0) {
+            while (waitpid(-1, NULL, WNOHANG) > 0) { // 좀비 프로세스 정리
             } // mop up defunts
 
             // become low priv again
-            if (!o.proc.become_proxy_user()) return 1;
+            if (!o.proc.become_proxy_user()) return 1; // 권한 변경
             continue;
         }
 
-        if (o.proc.is_daemonised)
+        if (o.proc.is_daemonised) // 정상 종료 신호 받았을 때 종료
             return 0; // exit without error
-        if (rc > 0) {
+        if (rc > 0) { // 예외 상황 시 종료
             E2LOGGER_error("Exiting with error");
             return rc; // exit returning the error number
         }
@@ -337,6 +337,7 @@ int startDaemon() {
 
 void prepareRegExp() {
     urldecode_re.comp("%[0-9a-fA-F][0-9a-fA-F]"); // regexp for url decoding
+    // 두 자리 16진수 표현
 
 #ifdef HAVE_PCRE
     // todo: these only work with PCRE enabled (non-greedy matching).

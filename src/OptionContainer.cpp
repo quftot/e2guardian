@@ -51,7 +51,7 @@ void OptionContainer::reset() {
 }
 
 // Purpose: reads all options from the main configuration file (e2guardian.conf)
-bool OptionContainer::read_config(const Path &filename, bool readFullConfig) {
+bool OptionContainer::read_config(const Path &filename, bool readFullConfig) { // 저장된 설정 파일 읽어서 메모리에 저장하는 곳
     ConfigReader          cr;
 
     // all sorts of exceptions could occur reading conf files

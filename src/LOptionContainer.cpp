@@ -610,7 +610,7 @@ bool LOptionContainer::realitycheck(long int l, long int minl, long int maxl, co
 }
 #endif
 
-bool LOptionContainer::readFilterGroupConf()
+bool LOptionContainer::readFilterGroupConf() // 필터 그룹
 {
     String prefix(o.config.configfile);
     prefix = prefix.before(".conf");

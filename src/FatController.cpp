@@ -1268,9 +1268,9 @@ void accept_connections(int index) // thread to listen on a single listening soc
 
 // Does lots and lots of things - creates url cache & logger threads, creates child threads for connection handling, does tidying up on exit
 // also handles the various signalling options e2g supports (reload config, flush cache, kill all processes etc.)
-int fc_controlit()   //
+int fc_controlit()   // URL 캐시와 로그 처리 스레드 발생, signal 받아서 처리
 {
-    int rc;
+    int rc; // 결과값
     bool is_starting = true;
     ttg = false;
     e2logger_ttg = false;
@@ -1281,32 +1281,33 @@ int fc_controlit()   //
     rotate_access = false;
     rotate_dstat = false;
 
-    o.lm.garbageCollect();
+    o.lm.garbageCollect(); // 리스트에 대해해 가비지컬렉션 실행
     thread_id = "master: ";
 
+    // 서버 소켓 생성하고 초기화
     // allocate & create our server sockets
-        if (o.net.filter_ip.size() > 0) {
-            serversocketcount = o.net.filter_ip.size() * o.net.filter_ports.size();
+        if (o.net.filter_ip.size() > 0) { // 필터링할 ip 주소가 하나 이상이면
+            serversocketcount = o.net.filter_ip.size() * o.net.filter_ports.size(); // 소켓 개수는 ip 사이즈 * port 사이즈
             if (!o.net.TLS_filter_ports.empty()) {
-                serversocketcount += (o.net.filter_ip.size() * o.net.TLS_filter_ports.size());
+                serversocketcount += (o.net.filter_ip.size() * o.net.TLS_filter_ports.size()); // TLS도 마찬가지
             }
         } else {
             serversocketcount = o.net.filter_ports.size() + o.net.TLS_filter_ports.size();
         }
 
-    int serversocktopproxy = serversocketcount;
+    int serversocktopproxy = serversocketcount; // 서버 소켓의 개수를 프록시 서버가 처리할 소켓 수로 지정
 
-    if (o.net.transparenthttps_port > 0)
+    if (o.net.transparenthttps_port > 0) // transparenthttps_port(HTTPS 트래픽 처리하는 포트)가 설정되어 있으면 소켓 추가
         ++serversocketcount;
-    if (o.net.icap_port > 0)
+    if (o.net.icap_port > 0) // icap_port가 설정되어 있으면 소켓 추가
         ++serversocketcount;
 
-    serversockets.reset(serversocketcount);
-    int *serversockfds = serversockets.getFDAll();
+    serversockets.reset(serversocketcount); // 개수만큼 서버 소켓 생성
+    int *serversockfds = serversockets.getFDAll(); // 서버 소켓들의 파일 디스크립터 배열을 반환 (배열은 각 서버 소켓에 대한 파일 디스크립터를 포함함)
     //std::thread *listen_treads[serversocketcount];
     for (int i = 0; i < serversocketcount; i++) {
         // if the socket fd is not +ve then the socket creation failed
-        if (serversockfds[i] < 0) {
+        if (serversockfds[i] < 0) { // 파일 디스크립터 유효 여부 확인 (음수면 소켓 생성 실패)
             E2LOGGER_error("Error creating server socket ", String(i));
             delete[] serversockfds;
             return 1;
@@ -1314,21 +1315,21 @@ int fc_controlit()   //
     }
 
     DEBUG_trace("seteuiding for low port binding/pidfile creation");
-     if (!o.proc.become_root_user()) {
+     if (!o.proc.become_root_user()) { // 프로세스를 루트 사용자 권한으로 전환 (80, 443 등과 같이 특정 포트에 소켓을 바인딩할 때 루트 권한 필요)
         E2LOGGER_error("Unable to seteuid() to bind filter port.");
         delete[] serversockfds;
         return 1;
     }
 
     // we have to open/create as root before drop privs
-    int pidfilefd = sysv_openpidfile(o.proc.pid_filename);
+    int pidfilefd = sysv_openpidfile(o.proc.pid_filename); // PID 파일 생성
     if (pidfilefd < 0) {
         E2LOGGER_error("Error creating/opening pid file.");
         delete[] serversockfds;
         return 1;
     }
 
-    int ss_index = 0;
+    int ss_index = 0; // 서버 소켓 인덱스 (바인딩할 때 고유의 인덱스를 갖도록 함)
     // we expect to find a valid filter ip 0 specified in conf if multiple IPs are in use.
     if (o.net.filter_ip[0].length() > 6) {
         if (serversockets.bindAll(o.net.filter_ip, o.net.filter_ports,ss_index,CT_PROXY)) {
@@ -1385,7 +1386,7 @@ int fc_controlit()   //
 #ifdef HAVE_SETREUID
     rc = setreuid((uid_t)-1, o.proc.proxy_user);
 #else
-    rc = seteuid(o.proc.proxy_user); // become low priv again
+    rc = seteuid(o.proc.proxy_user); // become low priv again // 유효 사용자 ID?
 #endif
     if (rc == -1) {
         E2LOGGER_error("%sUnable to re-seteuid()");
@@ -1395,6 +1396,8 @@ int fc_controlit()   //
     }
 
     if (serversockets.listenAll(256)) { // set it to listen mode with a kernel
+    // 리스닝 모드로 설정. 256는 백로그 큐 크기
+    // 백로그 큐는 동시에 처리되지 못한 클라이언트 연결 요청을 임시로 저장하는 대기열
         // queue of 256 backlog connections
         E2LOGGER_error("Error listening to server socket");
         close(pidfilefd);
@@ -1415,11 +1418,11 @@ int fc_controlit()   //
 #endif
 
     //init open ssl
-    SSL_load_error_strings();
+    SSL_load_error_strings(); // 오픈SSL(Openssl) 초기 세팅
     OpenSSL_add_all_algorithms();
     OpenSSL_add_all_digests();
-    if (o.cert.use_openssl_conf) {
-        if (o.cert.have_openssl_conf) {
+    if (o.cert.use_openssl_conf) { // useopensslconf 옵션에 따라
+        if (o.cert.have_openssl_conf) { // opensslconffile 옵션에 따라
             if (CONF_modules_load_file(o.cert.openssl_conf_path.c_str(), nullptr, 0) != 1) {
                 E2LOGGER_error("Error reading openssl config file ", o.cert.openssl_conf_path.c_str());
                 return false;
@@ -1434,8 +1437,8 @@ int fc_controlit()   //
     SSL_library_init();
 
     // only done now if not daemonised as pidfile must be written from parent when forking - required so that systemd will pick up master pid from pidfile
-    if (!is_daemonised) {
-        rc = sysv_writepidfile(pidfilefd, 0); // also closes the fd
+    if (!is_daemonised) { // 데몬으로 실행되고 있지 않으면
+        rc = sysv_writepidfile(pidfilefd, 0); // also closes the fd (파일 디스크립터 닫기)
         if (rc != 0) {
             E2LOGGER_error("Error writing to the e2guardian.pid file: ", strerror(errno));
             delete[] serversockfds;
@@ -1446,25 +1449,30 @@ int fc_controlit()   //
     // We are now a daemon so all errors need to go in the syslog, rather
     // than being reported on screen as we've detached from the console and
     // trying to write to stdout will not be nice.
+    // -> 프로세스가 데몬이 되었으므로 모든 에러는 화면에 출력하는 대신 syslog로 보내야 함
+    // 콘솔에서 분리되었기 때문에 stdout에 쓰려하면 좋지 않은 결과를 초래할 수 있음
 
     g_is_starting = false;
 
-    struct sigaction sa;
+    struct sigaction sa; // 시그널 구조체!(signal)
     memset(&sa, 0, sizeof(sa));
 
     // Now start creating threads so main thread can just handle signals, list reloads and stats
     // This removes need for select and/or epoll greatly simplifying the code
     // Threads are created for logger, a separate thread for each listening port
     // and an array of worker threads to deal with the work.
+    // -> 스레드 생성. 메인 스레드는 시그널 처리, 리스트 재로드, 통계 작업만 처리
+    // 이 방식은 select나 epoll을 사용할 필요를 없애 코드가 훨씬 간단함
+    // 로거를 위한 스레드, 각 리스닝 포트를 위한 개별 스레드, 작업 처리를 위한 워커 스레드 배열이 생성됨
     //if (!o.no_logger) {
-    if (e2logger.isEnabled(LoggerSource::accesslog)) {
+    if (e2logger.isEnabled(LoggerSource::accesslog)) { // 접속
         std::thread log_thread(log_listener, o.log.log_Q, false);
         log_thread.detach();
         DEBUG_trace("log_listener thread created");
     }
 
     //if(o.log_requests) {
-    if (e2logger.isEnabled(LoggerSource::requestlog)) {
+    if (e2logger.isEnabled(LoggerSource::requestlog)) { // 요청
         std::thread RQlog_thread(log_listener, o.log.RQlog_Q, true);
         RQlog_thread.detach();
         DEBUG_trace("RQlog_listener thread created");
@@ -1485,11 +1493,11 @@ int fc_controlit()   //
     DEBUG_trace("Master thread created threads");
 
     sigset_t signal_set;
-    sigemptyset(&signal_set);
-    sigaddset(&signal_set, SIGHUP);
-    sigaddset(&signal_set, SIGPIPE);
-    sigaddset(&signal_set, SIGTERM);
-    sigaddset(&signal_set, SIGUSR1);
+    sigemptyset(&signal_set); // 시그널 초기화
+    sigaddset(&signal_set, SIGHUP); // SIGHUP: 터미널 연결 끊기거나 설정 파일 재로드시 전달되는 시그널
+    sigaddset(&signal_set, SIGPIPE); // SIGPIPE: 파이프에 데이터를 쓰려했는데 읽는 쪽이 종료됐을 때 전달되는 시그널
+    sigaddset(&signal_set, SIGTERM); // SIGTERM: 정상적인 종료 요청을 전달하는 시그널
+    sigaddset(&signal_set, SIGUSR1); // SIGUSR1: 사용자 정의 시그널 (설정 변경, 통계 보고 등을 트리거하기 위해 사용한다고 함)
 
 #ifdef __OpenBSD__
     // OpenBSD does not support posix sig_timed_wait, so have to use timer and SIGALRM
@@ -1505,7 +1513,7 @@ int fc_controlit()   //
     timeout.tv_nsec = (long) 0;
 #endif
     int stat;
-    stat = pthread_sigmask(SIG_BLOCK, &signal_set, NULL);
+    stat = pthread_sigmask(SIG_BLOCK, &signal_set, NULL); // 위에서 지정한 시그널 목록을 차단 (프로그램의 흐름을 제어하고 안정성을 높이기 위함. 인터럽트 방지..)
     if (stat != 0) {
         E2LOGGER_error("Error setting sigmask");
         return 1;
@@ -1514,26 +1522,29 @@ int fc_controlit()   //
     DEBUG_trace("sig handlers done");
 
     dystat->busychildren = 0; // to keep count of our children
+    // 처리 중인 자식 프로세스의 수
 
     // worker thread generation
-    std::vector <std::thread> http_wt;
-    http_wt.reserve(o.proc.http_workers);
-
+    std::vector <std::thread> http_wt; // http_workers 스레드!!!
+    http_wt.reserve(o.proc.http_workers); // 스레드 생성 (http_workers 개수만큼)
+    
+    // 생성된 스레드를 http_wt 벡터에 추가. 각 스레드는 handle_connections 함수를 실행
+    // i는 각 스레드가 처리할 번호를 인자로 전달
     int i;
     for (i = 0; i < o.proc.http_workers; i++) {
-        http_wt.push_back(std::thread(handle_connections, i));
+        http_wt.push_back(std::thread(handle_connections, i)); // HTTP 연결 처리
     }
     for (auto &i : http_wt) {
-        i.detach();
+        i.detach(); // 백그라운드에서 독립적으로 실행되도록 분리 -> 메인스레드가 종료되도 계속 실행
     }
 
     DEBUG_trace("http_worker threads created");
 
     //   set listener threads going
     std::vector <std::thread> listen_threads;
-    listen_threads.reserve(serversocketcount);
+    listen_threads.reserve(serversocketcount); // 리스닝 스레드 생성 (serversocketcount 개수만큼)
     for (int i = 0; i < serversocketcount; i++) {
-        listen_threads.push_back(std::thread(accept_connections, i));
+        listen_threads.push_back(std::thread(accept_connections, i)); // accept_connections로 클라이언트 연결 수락
     }
     for (auto &i : listen_threads) {
         i.detach();
@@ -1543,21 +1554,22 @@ int fc_controlit()   //
 
     time_t tmaxspare;
 
-    time(&tmaxspare);
+    time(&tmaxspare); // 현재 시간을 tmaxspare 변수에 저장
 
     failurecount = 0; // as we don't exit on an error with select()
     // due to the fact that these errors do happen
     // every so often on a fully working, but busy
     // system, we just watch for too many errors
     // consecutivly.
+    // 오류 발생한 횟수..
 
-    is_starting = true;
+    is_starting = true; // 시작 상태!
 
     if (reloadconfig) {
         E2LOGGER_info("Reconfiguring E2guardian: done");
     } else {
         E2LOGGER_info("Started successfully.");
-        dystat->start();
+        dystat->start(); // 통계 로깅 시작?
     }
     reloadconfig = false;
 
@@ -1570,7 +1582,7 @@ int fc_controlit()   //
         is_starting = false;
     }
 
-    while (failurecount < 30 && !ttg && !reloadconfig) {
+    while (failurecount < 30 && !ttg && !reloadconfig) { // 빙글빙글... 실패횟수가 30회 이상이거나, ttg는 time to go(종료 시그널), 설정 파일 다시 읽어야할 때 while문 종료
 
         // loop, essentially, for ever until 30
         // consecutive errors in which case something
@@ -1626,20 +1638,20 @@ int fc_controlit()   //
 #else
         // other posix compliant platforms
         timeout.tv_sec = 5;
-        rc = sigtimedwait(&signal_set, NULL, &timeout);
+        rc = sigtimedwait(&signal_set, NULL, &timeout); // 시그널 대기
         if (rc < 0) {
             if (errno != EAGAIN) {
                 E2LOGGER_info("Unexpected error from sigtimedwait():", String(errno), " ", strerror(errno));
             }
         } else {
-            if (rc == SIGUSR1) {
+            if (rc == SIGUSR1) { // 액세스, 요청, 통계 로그 로테이션
                 rotate_access = true;
                 rotate_request = true;
                 rotate_dstat = true;
             }
-            if (rc == SIGTERM)
+            if (rc == SIGTERM) // 루프 종료
                 ttg = true;
-            if (rc == SIGHUP)
+            if (rc == SIGHUP) // 설정 파일 재로드
                 gentlereload = true;
 
             DEBUG_debug("signal: ", String(rc));
@@ -1649,7 +1661,7 @@ int fc_controlit()   //
         }
 #endif   // end __OpenBSD__ else
 
-        int q_size = o.http_worker_Q.size();
+        int q_size = o.http_worker_Q.size(); // 큐 크기 모니터링
         DEBUG_debug("busychildren:", String(dystat->busychildren),
                     " worker Q size:", q_size);
         if (o.dstat.dstat_log_flag) {
@@ -1670,14 +1682,14 @@ int fc_controlit()   //
 
 
         if (o.dstat.dstat_log_flag && (now >= dystat->end_int))
-            dystat->reset();
+            dystat->reset(); // 타이머 리셋 (새로운 통계 데이터를 수집하기 위함)
     }
 
 
     //  tidy-up
 
     sigfillset(&signal_set);
-    pthread_sigmask(SIG_BLOCK, &signal_set, NULL);
+    pthread_sigmask(SIG_BLOCK, &signal_set, NULL); // 시그널 차단
 
     E2LOGGER_info("Stopping");
 
@@ -1693,7 +1705,7 @@ int fc_controlit()   //
     LQ_rec rec;
     rec.sock = NS;
     rec.ct_type = CT_PROXY;
-    for (i = 0; i < o.proc.http_workers; i++) {
+    for (i = 0; i < o.proc.http_workers; i++) { // http_works 스레드가 처리할 수 있는 작업을 종료시키기 위해 빈 소켓을 큐에 넣음 -> 작업 종료
         o.http_worker_Q.push(rec);
     }
     // dystat->reset();    // remove this line for production version
@@ -1705,22 +1717,22 @@ int fc_controlit()   //
     o.log.log_Q->push(nullstr);
     //if (o.log_requests) {
     if (e2logger.isEnabled(LoggerSource::requestlog)) {
-        o.log.RQlog_Q->push(nullstr);
+        o.log.RQlog_Q->push(nullstr); // 로그 큐에 빈 메시지를 푸시해서 로그 작업 마무리
     }
 
     if (o.conn.logconerror) {
         E2LOGGER_info("stopping any remaining connections");
     }
-    serversockets.self_connect();   // stop accepting connections
+    serversockets.self_connect();   // stop accepting connections // 소켓 연결 종료
     if (o.conn.logconerror) {
         E2LOGGER_info("connections stopped");
     }
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    std::this_thread::sleep_for(std::chrono::milliseconds(2000)); // 2초 대기
 
-    if (o.dstat.dstat_log_flag) dystat->close();
+    if (o.dstat.dstat_log_flag) dystat->close(); // 소켓 파일 디스크립터 해제
 
-    delete[] serversockfds;
+    delete[] serversockfds; // 메모리 리소스 정리
 
     if (o.conn.logconerror) {
         E2LOGGER_info("Main thread exiting.");

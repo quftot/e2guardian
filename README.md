@@ -1,3 +1,7 @@
+# 소스 분석을 위해 한국어로 주석을 추가하고 있습니다.
+## e2guardian.cpp의 main 함수부터 시작!
+---
+
 # [E2Guardian](http://e2guardian.org)
 
 This is the stable v5.5 version - v5.5.3
