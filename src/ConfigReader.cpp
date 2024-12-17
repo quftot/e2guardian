@@ -116,7 +116,7 @@ bool ConfigReader::readConfig(const Path &filename, const Path &list_pwd) {
         else if (linebuffer[0] == '.') {
           String filename = temp.after(".Include<").before(">");
           if (filename.length() > 0) {
-              if (!readConfig( base_dir.combine(filename), now_pwd)) {
+              if (!readConfig( base_dir.combine(filename), now_pwd)) { // 재귀한다..... 파일 내에서 include한 파일들에 대해서
                   conffile.close();
                   return false;
               }

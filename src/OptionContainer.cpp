@@ -58,7 +58,7 @@ bool OptionContainer::read_config(const Path &filename, bool readFullConfig) { /
     try {
         Path list_pwd(__CONFDIR);
         list_pwd.append("/lists/common");
-        if (!cr.readConfig(filename, list_pwd))
+        if (!cr.readConfig(filename, list_pwd)) // 설정 파일을 실제로 루프문으로 돌려서 읽는 곳
             return false;
 
         if ((proc.pid_filename = cr.findoptionS("pidfilename")) == "") {

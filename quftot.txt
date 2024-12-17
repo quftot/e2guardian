@@ -1,0 +1,5 @@
+
+
+sudo apt-get install libpcre2-dev
+wget https://github.com/PCRE2Project/pcre2/archive/refs/tags/pcre2-10.44.tar.gz
+sudo apt-get install libssl-dev
